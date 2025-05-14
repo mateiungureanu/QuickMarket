@@ -1,7 +1,7 @@
 ---
 name: "User Story"
 about: "Create a new user story"
-title: "AS A [type of user] I WANT TO [do something] SO THAT [some benefit]"
+title: ""
 labels: ["user story"]
 assignees: ["mateiungureanu"]
 ---
