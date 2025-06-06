@@ -42,7 +42,7 @@ public class PurchaseHistoryService {
         }
     }
 
-    public List<PurchaseHistory> getCustomerPurchaseHistory(int customerId) throws SQLException {
+    public List<PurchaseHistory> getPurchaseHistory(int customerId) throws SQLException {
         return purchaseHistoryDAO.getByCustomerId(customerId);
     }
 } 

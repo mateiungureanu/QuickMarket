@@ -46,24 +46,10 @@ public class ProductDAO {
     }
 
     public void delete(int productId) throws SQLException {
-        String checkQuery = "SELECT COUNT(*) FROM purchase_history WHERE product_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(checkQuery)) {
+        String sql = "UPDATE product SET deleted = TRUE WHERE product_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, productId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next() && rs.getInt(1) > 0) {
-                    String softDeleteQuery = "UPDATE product SET deleted = TRUE WHERE product_id = ?";
-                    try (PreparedStatement updateStmt = connection.prepareStatement(softDeleteQuery)) {
-                        updateStmt.setInt(1, productId);
-                        updateStmt.executeUpdate();
-                    }
-                } else {
-                    String hardDeleteQuery = "DELETE FROM product WHERE product_id = ?";
-                    try (PreparedStatement deleteStmt = connection.prepareStatement(hardDeleteQuery)) {
-                        deleteStmt.setInt(1, productId);
-                        deleteStmt.executeUpdate();
-                    }
-                }
-            }
+            stmt.executeUpdate();
         }
     }
 
@@ -96,14 +82,29 @@ public class ProductDAO {
         return products;
     }
 
+    public List<Product> getAll() throws SQLException {
+        String sql = "SELECT * FROM product WHERE deleted = FALSE";
+        List<Product> products = new ArrayList<>();
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                products.add(mapProduct(rs));
+            }
+        }
+        return products;
+    }
+
     public Product getById(int productId) throws SQLException {
-        String query = "SELECT * FROM product WHERE product_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+        return getById(productId, false);
+    }
+
+    public Product getById(int productId, boolean includeDeleted) throws SQLException {
+        String sql = "SELECT * FROM product WHERE product_id = ?" + (includeDeleted ? "" : " AND deleted = FALSE");
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, productId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return mapProduct(rs);
-                }
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return mapProduct(rs);
             }
         }
         return null;

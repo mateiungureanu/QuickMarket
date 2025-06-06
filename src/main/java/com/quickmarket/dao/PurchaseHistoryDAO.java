@@ -34,14 +34,13 @@ public class PurchaseHistoryDAO {
     }
 
     public List<PurchaseHistory> getByCustomerId(int customerId) throws SQLException {
+        String sql = "SELECT ph.*, p.name as product_name FROM purchase_history ph " + "LEFT JOIN product p ON ph.product_id = p.product_id " + "WHERE ph.customer_id = ?";
         List<PurchaseHistory> history = new ArrayList<>();
-        String sql = "SELECT * FROM purchase_history WHERE customer_id = ? ORDER BY purchase_date DESC";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, customerId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    history.add(mapPurchaseHistory(rs));
-                }
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                history.add(mapPurchaseHistory(rs));
             }
         }
         return history;

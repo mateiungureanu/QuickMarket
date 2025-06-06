@@ -483,7 +483,7 @@ public class Main {
     }
 
     private static void handlePurchaseHistory() throws SQLException {
-        List<PurchaseHistory> history = purchaseHistoryService.getCustomerPurchaseHistory(currentUser.getUserId());
+        List<PurchaseHistory> history = purchaseHistoryService.getPurchaseHistory(currentUser.getUserId());
         if (history.isEmpty()) {
             System.out.println("\nNo purchase history available.");
             return;
@@ -491,9 +491,8 @@ public class Main {
 
         System.out.println("\nPurchase History");
         for (PurchaseHistory item : history) {
-            Product product = productService.getProductById(item.getProductId());
+            Product product = productService.getProductById(item.getProductId(), true);
             double total = item.getPrice() * item.getQuantity();
-
             System.out.println(product.getName() + " - Price: $" + item.getPrice() + " - Quantity: " + item.getQuantity() + " - Total: $" + total + " - Date: " + item.getPurchaseDate());
         }
     }

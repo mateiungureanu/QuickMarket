@@ -97,7 +97,7 @@ INSERT INTO market (name, location) VALUES
 
 INSERT INTO user (username, email, password, user_type) VALUES 
 ('nea gigel', 'neagigel@gmail.com', 'nea gigel', 'SELLER'),
-('tanti agla', 'tantiaglaia@gmail.com', 'tanti aglaia', 'SELLER');
+('tanti aglaia', 'tantiaglaia@gmail.com', 'tanti aglaia', 'SELLER');
 
 INSERT INTO user (username, email, password, user_type) VALUES 
 ('matei', 'matei@gmail.com', 'matei', 'CUSTOMER');

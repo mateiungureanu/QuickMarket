@@ -33,7 +33,11 @@ public class ProductService {
         return productDAO.getByMarket(marketId);
     }
 
-    public Product getProductById(int id) throws SQLException {
-        return productDAO.getById(id);
+    public Product getProductById(int productId) throws SQLException {
+        return getProductById(productId, false);
+    }
+
+    public Product getProductById(int productId, boolean includeDeleted) throws SQLException {
+        return productDAO.getById(productId, includeDeleted);
     }
 } 
