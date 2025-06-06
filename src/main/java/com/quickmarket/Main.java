@@ -1,632 +1,635 @@
 package com.quickmarket;
 
 import com.quickmarket.model.*;
-import com.quickmarket.service.QuickMarketService;
+import com.quickmarket.service.*;
 
+import java.sql.SQLException;
+import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
-import java.util.Set;
-import java.util.ArrayList;
 
 public class Main {
-    private static final QuickMarketService service = new QuickMarketService();
     private static final Scanner scanner = new Scanner(System.in);
+    private static User currentUser;
+    private static UserService userService;
+    private static AdminService adminService;
+    private static MarketService marketService;
+    private static StallService stallService;
+    private static ProductService productService;
+    private static ShoppingListService shoppingListService;
+    private static PurchaseHistoryService purchaseHistoryService;
+
+    private static void initializeServices() throws SQLException {
+        userService = new UserService();
+        adminService = new AdminService();
+        marketService = new MarketService();
+        stallService = new StallService();
+        productService = new ProductService();
+        shoppingListService = new ShoppingListService();
+        purchaseHistoryService = new PurchaseHistoryService();
+    }
 
     public static void main(String[] args) {
-        boolean running = true;
-        while (running) {
-            try {
-                System.out.println("\n=== QuickMarket ===");
-                System.out.println("1. Login");
-                System.out.println("2. Register");
-                System.out.println("3. Admin Login");
-                System.out.println("4. Exit");
-                System.out.print("Choose an option: ");
-
+        try {
+            initializeServices();
+            while (true) {
+                showMainMenu();
                 int choice = scanner.nextInt();
                 scanner.nextLine();
 
                 switch (choice) {
+                    case 0 -> {
+                        System.out.println("Goodbye!");
+                        return;
+                    }
                     case 1 -> handleLogin();
-                    case 2 -> handleRegistration();
+                    case 2 -> handleRegister();
                     case 3 -> handleAdminLogin();
-                    case 4 -> running = false;
                     default -> System.out.println("Invalid option. Please try again.");
                 }
-            } catch (java.util.InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a number.");
-                scanner.nextLine();
             }
+        } catch (SQLException e) {
+            System.out.println("Error initializing services: " + e.getMessage());
         }
+    }
+
+    private static void showMainMenu() {
+        System.out.println("\n1. Login");
+        System.out.println("2. Register");
+        System.out.println("3. Admin login");
+        System.out.println("0. Exit");
+        System.out.print("Choose an option: ");
+    }
+
+    private static void showRegisterMenu() {
+        System.out.println("\n1. Register as customer");
+        System.out.println("2. Register as seller");
+        System.out.println("0. Go back");
+        System.out.print("Choose an option: ");
+    }
+
+    private static void showAdminMenu() {
+        System.out.println("\n1. View all customers");
+        System.out.println("2. View all sellers");
+        System.out.println("3. View all markets");
+        System.out.println("4. Add a market");
+        System.out.println("5. Edit a market");
+        System.out.println("0. Logout");
+        System.out.print("Choose an option: ");
+    }
+
+    private static void showSellerMenu() {
+        System.out.println("\n1. View all products");
+        System.out.println("2. Add a product");
+        System.out.println("3. Edit a product");
+        System.out.println("4. Delete a product");
+        System.out.println("0. Logout");
+        System.out.print("Choose an option: ");
+    }
+
+    private static void showCustomerMenu() {
+        System.out.println("\n1. Choose Product");
+        System.out.println("2. View shopping list");
+        System.out.println("3. View purchase history");
+        System.out.println("0. Logout");
+        System.out.print("Choose an option: ");
     }
 
     private static void handleLogin() {
-        try {
-            System.out.print("Username: ");
-            String username = scanner.nextLine();
-            System.out.print("Password: ");
-            String password = scanner.nextLine();
+        System.out.print("Enter username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
 
-            User user = service.login(username, password);
-            if (user != null) {
-                if (user instanceof Customer) {
-                    handleCustomerSession();
-                } else if (user instanceof Seller) {
-                    handleSellerSession();
-                }
-            } else {
-                System.out.println("Invalid credentials.");
+        try {
+            User user = userService.login(username, password);
+            if (user == null) {
+                System.out.println("Login failed. Please try again.");
+                return;
             }
-        } catch (Exception e) {
-            System.out.println("An error occurred during login. Please try again.");
+
+            currentUser = user;
+            System.out.println("Login successful!");
+
+            switch (user.getUserType()) {
+                case "ADMIN" -> handleAdminMenu();
+                case "SELLER" -> handleSellerMenu();
+                case "CUSTOMER" -> handleCustomerMenu();
+                default -> {
+                    System.out.println("Invalid user type. Logging out...");
+                    currentUser = null;
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("Error during login: " + e.getMessage());
         }
     }
 
-    private static void handleRegistration() {
-        try {
-            System.out.println("\n=== Registration ===");
-            System.out.println("1. Register as Customer");
-            System.out.println("2. Register as Seller");
-            System.out.print("Choose an option: ");
-
+    private static void handleRegister() {
+        while (true) {
+            showRegisterMenu();
             int choice = scanner.nextInt();
             scanner.nextLine();
 
-            System.out.print("Username: ");
-            String username = scanner.nextLine();
-            System.out.print("Password: ");
-            String password = scanner.nextLine();
-            System.out.print("Email: ");
-            String email = scanner.nextLine();
-
-            if (choice == 1) {
-                service.registerCustomer(username, password, email);
-                System.out.println("Customer registered successfully!");
-            } else if (choice == 2) {
-                List<Market> markets = service.getAllMarkets();
-                if (markets.isEmpty()) {
-                    System.out.println("No markets available. Please contact an admin.");
+            switch (choice) {
+                case 0 -> {
                     return;
                 }
-                System.out.println("\nAvailable Markets:");
-                for (Market market : markets) {
-                    System.out.println(market.getId() + ". " + market.getName());
+                case 1 -> {
+                    handleCustomerRegistration();
+                    return;
                 }
-                System.out.print("Select market ID: ");
-                int marketId = scanner.nextInt();
-                scanner.nextLine();
-                service.registerSeller(username, password, email, marketId);
-                System.out.println("Seller registered successfully!");
-            } else {
-                System.out.println("Invalid option.");
+                case 2 -> {
+                    handleSellerRegistration();
+                    return;
+                }
+                default -> System.out.println("Invalid option. Please try again.");
             }
-        } catch (java.util.InputMismatchException e) {
-            System.out.println("Invalid input. Please enter a number.");
-            scanner.nextLine();
-        } catch (IllegalArgumentException e) {
-            System.out.println("Error: " + e.getMessage());
-        } catch (Exception e) {
-            System.out.println("An error occurred during registration. Please try again.");
         }
     }
 
-    private static void handleAdminLogin() {
+    private static void handleAdminLogin() throws SQLException {
+        System.out.print("Password: ");
+        String password = scanner.nextLine();
+
+        User admin = adminService.login("admin", password);
+        if (admin != null) {
+            System.out.println("\nLogin successful!");
+            handleAdminMenu();
+        } else {
+            System.out.println("\nInvalid credentials!");
+        }
+    }
+
+    private static void handleCustomerRegistration() {
+        System.out.println("\nCustomer Registration");
+        System.out.print("Enter username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter email: ");
+        String email = scanner.nextLine();
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+
         try {
-            System.out.print("Admin Password: ");
-            String password = scanner.nextLine();
-            User admin = service.login("admin", password);
-            if (admin instanceof Admin) {
-                handleAdminSession();
-            } else {
-                System.out.println("Invalid admin credentials.");
+            User user = userService.register(username, email, password, "CUSTOMER");
+            if (user == null) {
+                System.out.println("Customer registration failed. Please try again.");
+                return;
             }
-        } catch (Exception e) {
-            System.out.println("An error occurred during admin login. Please try again.");
+
+            currentUser = user;
+            System.out.println("Customer registered successfully!");
+            handleCustomerMenu();
+        } catch (SQLException e) {
+            System.out.println("Error during customer registration: " + e.getMessage());
         }
     }
 
-    private static void handleCustomerSession() {
-        boolean inSession = true;
-        while (inSession) {
-            try {
-                System.out.println("\n=== Customer Menu ===");
-                System.out.println("1. View Markets");
-                System.out.println("2. View Shopping List");
-                System.out.println("3. View Purchase History");
-                System.out.println("4. Logout");
-                System.out.print("Choose an option: ");
+    private static void handleSellerRegistration() {
+        System.out.println("\nSeller Registration");
+        System.out.print("Enter username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter email: ");
+        String email = scanner.nextLine();
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
 
+        try {
+            User user = userService.register(username, email, password, "SELLER");
+            if (user == null) {
+                System.out.println("Seller registration failed. Please try again.");
+                return;
+            }
+
+            System.out.println("Seller registered successfully!");
+            currentUser = user;
+            handleSellerMenu();
+        } catch (SQLException e) {
+            System.out.println("Error during seller registration: " + e.getMessage());
+        }
+    }
+
+    private static void handleAdminMenu() throws SQLException {
+        while (true) {
+            showAdminMenu();
+            try {
                 int choice = scanner.nextInt();
                 scanner.nextLine();
 
                 switch (choice) {
-                    case 1 -> handleMarketSelection();
-                    case 2 -> handleShoppingList();
-                    case 3 -> handlePurchaseHistory();
-                    case 4 -> {
-                        service.logout();
-                        inSession = false;
-                    }
-                    default -> System.out.println("Invalid option. Please try again.");
-                }
-            } catch (java.util.InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a number.");
-                scanner.nextLine();
-            } catch (Exception e) {
-                System.out.println("An error occurred. Please try again.");
-            }
-        }
-    }
-
-    private static void handleMarketSelection() {
-        try {
-            List<Market> markets = service.getAllMarkets();
-            if (markets.isEmpty()) {
-                System.out.println("No markets available.");
-                return;
-            }
-
-            System.out.println("\nAvailable Markets:");
-            for (Market market : markets) {
-                List<Stall> stalls = service.getStallsInMarket(market.getId());
-                System.out.println(market.getId() + ". " + market.getName() + 
-                                 " - " + market.getLocation() + 
-                                 " (Stalls: " + stalls.size() + ")");
-            }
-            System.out.print("Select market ID: ");
-            int marketId = scanner.nextInt();
-            scanner.nextLine();
-
-            handleStallSelection(marketId);
-        } catch (java.util.InputMismatchException e) {
-            System.out.println("Invalid input. Please enter a number.");
-            scanner.nextLine();
-        } catch (Exception e) {
-            System.out.println("An error occurred. Please try again.");
-        }
-    }
-
-    private static void handleStallSelection(int marketId) {
-        try {
-            List<Stall> stalls = service.getStallsInMarket(marketId);
-            if (stalls.isEmpty()) {
-                System.out.println("No stalls available in this market.");
-                return;
-            }
-
-            System.out.println("\nAvailable Stalls:");
-            for (Stall stall : stalls) {
-                System.out.println(stall.getId() + ". " + stall.getName() + 
-                                 " (Products: " + stall.getProducts().size() + ")");
-            }
-            System.out.print("Select stall ID: ");
-            int stallId = scanner.nextInt();
-            scanner.nextLine();
-
-            handleProductSelection(stallId);
-        } catch (java.util.InputMismatchException e) {
-            System.out.println("Invalid input. Please enter a number.");
-            scanner.nextLine();
-        } catch (Exception e) {
-            System.out.println("An error occurred. Please try again.");
-        }
-    }
-
-    private static void handleProductSelection(int stallId) {
-        try {
-            List<Product> products = service.getProductsInStall(stallId);
-            if (products.isEmpty()) {
-                System.out.println("No products available in this stall.");
-                return;
-            }
-
-            System.out.println("\nAvailable Products:");
-            Customer customer = (Customer) service.getCurrentUser();
-            List<ShoppingItem> shoppingList = customer.getShoppingList();
-            
-            for (Product product : products) {
-                int quantityInList = 0;
-                for (ShoppingItem item : shoppingList) {
-                    if (item.getProduct().getId() == product.getId()) {
-                        quantityInList = item.getQuantity();
+                    case 0:
+                        currentUser = null;
+                        return;
+                    case 1:
+                        handleViewCustomers();
                         break;
-                    }
+                    case 2:
+                        handleViewSellers();
+                        break;
+                    case 3:
+                        handleViewMarkets();
+                        break;
+                    case 4:
+                        handleAddMarket();
+                        break;
+                    case 5:
+                        handleUpdateMarket();
+                        break;
+                    default:
+                        System.out.println("Invalid option. Please try again.");
                 }
-                
-                if (quantityInList > 0) {
-                    System.out.printf("%d. %s - %.2f $ (Quantity: %d) (already in list: %d)%n",
-                            product.getId(),
-                            product.getName(),
-                            product.getPrice(),
-                            product.getQuantity(),
-                            quantityInList);
-                } else {
-                    System.out.printf("%d. %s - %.2f $ (Quantity: %d)%n",
-                            product.getId(),
-                            product.getName(),
-                            product.getPrice(),
-                            product.getQuantity());
-                }
+            } catch (InputMismatchException e) {
+                System.out.println("Please enter a valid number.");
+                scanner.nextLine();
             }
-
-            System.out.println("\n1. Add to Shopping List");
-            System.out.println("2. Back");
-            System.out.print("Choose an option: ");
-
-            int choice = scanner.nextInt();
-            scanner.nextLine();
-
-            switch (choice) {
-                case 1 -> {
-                    System.out.print("Enter product ID: ");
-                    int productId = scanner.nextInt();
-                    System.out.print("Enter quantity: ");
-                    int quantity = scanner.nextInt();
-                    scanner.nextLine();
-                    try {
-                        service.updateShoppingListItemQuantity(productId, quantity);
-                        System.out.println("Product added to shopping list.");
-                    } catch (IllegalArgumentException e) {
-                        System.out.println("Error: " + e.getMessage());
-                    }
-                }
-                case 2 -> {
-                }
-                default -> System.out.println("Invalid option. Please try again.");
-            }
-        } catch (java.util.InputMismatchException e) {
-            System.out.println("Invalid input. Please enter a number.");
-            scanner.nextLine();
         }
     }
 
-    private static void handleShoppingList() {
-        try {
-            List<ShoppingItem> shoppingList = service.getShoppingList();
-            if (shoppingList.isEmpty()) {
-                System.out.println("Your shopping list is empty.");
-                return;
-            }
-
-            System.out.println("\nShopping List:");
-            double totalPrice = 0;
-            for (ShoppingItem item : shoppingList) {
-                Product product = item.getProduct();
-                Stall stall = product.getStall();
-                int availableQuantity = Math.min(item.getQuantity(), product.getQuantity());
-                double itemTotal = product.getPrice() * availableQuantity;
-                totalPrice += itemTotal;
-                
-                if (product.getQuantity() == 0) {
-                    System.out.println(product.getName() + " - " + item.getQuantity() + 
-                                     " * " + product.getPrice() + " $" +
-                                     " = " + itemTotal + " $" +
-                                     " (" + stall.getName() + ")" +
-                                     " - No longer in stock");
-                } else if (item.getQuantity() > product.getQuantity()) {
-                    System.out.println(product.getName() + " - " + item.getQuantity() + 
-                                     " * " + product.getPrice() + " $" +
-                                     " = " + itemTotal + " $" +
-                                     " (" + stall.getName() + ")" +
-                                     " - Only " + product.getQuantity() + " available");
-                } else {
-                    System.out.println(product.getName() + " - " + item.getQuantity() + 
-                                     " * " + product.getPrice() + " $" +
-                                     " = " + itemTotal + " $" +
-                                     " (" + stall.getName() + ")");
-                }
-            }
-            System.out.println("\nTotal Price: " + totalPrice + " $");
-
-            System.out.println("\n1. Complete Purchase");
-            System.out.println("2. Back");
-            System.out.print("Choose an option: ");
-
-            int choice = scanner.nextInt();
-            scanner.nextLine();
-
-            switch (choice) {
-                case 1 -> {
-                    try {
-                        service.completePurchase();
-                        System.out.println("Purchase completed successfully.");
-                    } catch (IllegalArgumentException e) {
-                        System.out.println("Error: " + e.getMessage());
-                    }
-                }
-                case 2 -> {
-                }
-                default -> System.out.println("Invalid option. Please try again.");
-            }
-        } catch (java.util.InputMismatchException e) {
-            System.out.println("Invalid input. Please enter a number.");
-            scanner.nextLine();
+    private static void handleViewCustomers() throws SQLException {
+        List<Customer> customers = adminService.getAllCustomers();
+        if (customers.isEmpty()) {
+            System.out.println("\nNo customers found.");
+            return;
+        }
+        System.out.println("\nAll Customers");
+        for (Customer customer : customers) {
+            System.out.println(customer.getUserId() + ". " + customer.getUsername() + " - " + customer.getEmail());
+            System.out.println("    - Total quantity: " + customer.getTotalQuantity());
+            System.out.println("    - Total spent: $" + customer.getTotalSpent());
         }
     }
 
-    private static void handlePurchaseHistory() {
-        try {
-            Customer customer = (Customer) service.getCurrentUser();
-            List<ShoppingItem> purchaseHistory = customer.getPurchaseHistory();
-            if (purchaseHistory.isEmpty()) {
-                System.out.println("No purchase history available.");
-                return;
-            }
-
-            System.out.println("\nPurchase History:");
-            for (ShoppingItem item : purchaseHistory) {
-                Product product = item.getProduct();
-                System.out.printf("%d. %s (Stall: %s) - %.2f $ x %d = %.2f $%n",
-                        product.getId(),
-                        product.getName(),
-                        product.getStall().getName(),
-                        product.getPrice(),
-                        item.getQuantity(),
-                        product.getPrice() * item.getQuantity());
-            }
-        } catch (Exception e) {
-            System.out.println("An error occurred while viewing purchase history.");
+    private static void handleViewSellers() throws SQLException {
+        List<Seller> sellers = adminService.getAllSellers();
+        if (sellers.isEmpty()) {
+            System.out.println("\nNo sellers found.");
+            return;
+        }
+        System.out.println("\nAll Sellers");
+        for (Seller seller : sellers) {
+            Stall stall = stallService.getBySellerId(seller.getUserId());
+            System.out.println(seller.getUserId() + ". " + seller.getUsername() + " - " + seller.getEmail() + " | " + (stall != null ? stall.getName() : "No stall"));
+            System.out.println("    - Total quantity: " + seller.getTotalQuantity());
+            System.out.println("    - Total revenue: $" + seller.getTotalRevenue());
         }
     }
 
-    private static void handleSellerSession() {
-        boolean inSession = true;
-        while (inSession) {
+    private static void handleViewMarkets() throws SQLException {
+        List<Market> markets = marketService.getAllMarkets();
+        if (markets.isEmpty()) {
+            System.out.println("\nNo markets available.");
+            return;
+        }
+
+        System.out.println("\nAvailable Markets");
+        for (Market market : markets) {
+            int stallCount = stallService.getByMarketId(market.getMarketId()).size();
+            int productCount = productService.getProductsByMarket(market.getMarketId()).size();
+            System.out.println(market.getMarketId() + ". " + market.getName() + " - " + market.getLocation());
+            System.out.println("    - Stalls: " + stallCount);
+            System.out.println("    - Products: " + productCount);
+        }
+    }
+
+    private static void handleAddMarket() throws SQLException {
+        System.out.println("\nAdd a Market");
+        System.out.print("Enter market name: ");
+        String name = scanner.nextLine();
+        if (name.isEmpty()) {
+            System.out.println("Name cannot be empty.");
+            return;
+        }
+
+        System.out.print("Enter market location: ");
+        String location = scanner.nextLine();
+        if (location.isEmpty()) {
+            System.out.println("Location cannot be empty.");
+            return;
+        }
+
+        marketService.createMarket(name, location);
+        System.out.println("\nMarket added successfully!");
+    }
+
+    private static void handleUpdateMarket() throws SQLException {
+        List<Market> markets = marketService.getAllMarkets();
+        if (markets.isEmpty()) {
+            System.out.println("\nNo markets available.");
+            return;
+        }
+
+        System.out.println("\nAll Markets");
+        for (Market market : markets) {
+            System.out.println(market.getMarketId() + ". " + market.getName() + " (" + market.getLocation() + ")");
+        }
+
+        System.out.print("\nEnter market ID (0 to go back): ");
+        int marketId = scanner.nextInt();
+        scanner.nextLine();
+        if (marketId == 0) return;
+
+        Market market = marketService.getMarketById(marketId);
+        if (market == null) {
+            System.out.println("Invalid market ID.");
+            return;
+        }
+
+        System.out.println("\nEdit a Market");
+        System.out.print("New name (" + market.getName() + "): ");
+        String newName = scanner.nextLine();
+        System.out.print("New location (" + market.getLocation() + "): ");
+        String newLocation = scanner.nextLine();
+
+        if (newName.isEmpty()) newName = market.getName();
+        if (newLocation.isEmpty()) newLocation = market.getLocation();
+
+        marketService.updateMarket(marketId, newName, newLocation);
+        System.out.println("\nMarket updated successfully!");
+    }
+
+    private static void handleCustomerMenu() throws SQLException {
+        while (true) {
+            showCustomerMenu();
             try {
-                System.out.println("\n=== Seller Menu ===");
-                System.out.println("1. View Products");
-                System.out.println("2. Add Product");
-                System.out.println("3. Modify Product");
-                System.out.println("4. Delete Product");
-                System.out.println("5. Logout");
-                System.out.print("Choose an option: ");
-
                 int choice = scanner.nextInt();
                 scanner.nextLine();
 
                 switch (choice) {
-                    case 1 -> handleSellerProducts();
-                    case 2 -> handleAddProduct();
-                    case 3 -> handleModifyProduct();
-                    case 4 -> handleDeleteProduct();
-                    case 5 -> {
-                        service.logout();
-                        inSession = false;
-                    }
-                    default -> System.out.println("Invalid option. Please try again.");
+                    case 0:
+                        currentUser = null;
+                        return;
+                    case 1:
+                        handleChooseProduct();
+                        break;
+                    case 2:
+                        handleShoppingList();
+                        break;
+                    case 3:
+                        handlePurchaseHistory();
+                        break;
+                    default:
+                        System.out.println("Invalid option. Please try again.");
                 }
-            } catch (java.util.InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a number.");
+            } catch (InputMismatchException e) {
+                System.out.println("Please enter a valid number.");
                 scanner.nextLine();
-            } catch (Exception e) {
-                System.out.println("An error occurred. Please try again.");
             }
         }
     }
 
-    private static void handleSellerProducts() {
-        try {
-            Seller seller = (Seller) service.getCurrentUser();
-            Stall stall = seller.getStall();
-            if (stall == null) {
-                System.out.println("No stall assigned to you.");
-                return;
-            }
+    private static void handleChooseProduct() throws SQLException {
+        handleViewMarkets();
 
-            List<Product> products = new ArrayList<>(stall.getProducts());
-            if (products.isEmpty()) {
-                System.out.println("No products in your stall.");
-                return;
-            }
+        System.out.print("\nSelect market ID (0 to go back): ");
+        int marketId = scanner.nextInt();
+        scanner.nextLine();
+        if (marketId == 0) return;
 
-            System.out.println("\nYour Products:");
-            for (Product product : products) {
-                System.out.println(product.getId() + ". " + product.getName() + 
-                                 " - $" + product.getPrice() + 
-                                 " (Quantity: " + product.getQuantity() + ")");
+        List<Product> products = productService.getProductsByMarket(marketId);
+        if (products.isEmpty()) {
+            System.out.println("\nNo products available in this market.");
+            return;
+        }
+
+        System.out.println("\nAvailable Products");
+        for (Product product : products) {
+            Stall stall = stallService.getById(product.getStallId());
+            int inList = shoppingListService.getQuantityInList(currentUser.getUserId(), product.getProductId());
+            if (inList > 0) {
+                System.out.println(product.getProductId() + ". " + product.getName() + " (" + product.getQuantity() + ") - $" + product.getPrice() + " | " + stall.getName() + " (already in list: " + inList + ")");
+            } else {
+                System.out.println(product.getProductId() + ". " + product.getName() + " (" + product.getQuantity() + ") - $" + product.getPrice() + " | " + stall.getName());
             }
-        } catch (Exception e) {
-            System.out.println("An error occurred while viewing products.");
+        }
+
+        System.out.print("\nSelect product ID (0 to go back): ");
+        int productId = scanner.nextInt();
+        scanner.nextLine();
+        if (productId == 0) return;
+
+        Product selectedProduct = products.stream().filter(p -> p.getProductId() == productId).findFirst().orElse(null);
+
+        if (selectedProduct == null) {
+            System.out.println("Invalid product selection.");
+            return;
+        }
+
+        int currentQuantity = shoppingListService.getQuantityInList(currentUser.getUserId(), productId);
+        if (currentQuantity > 0) {
+            System.out.println("\nThis product is already in your shopping list with quantity: " + currentQuantity);
+            System.out.print("Enter new total quantity (0 to remove from list): ");
+        } else {
+            System.out.print("Enter quantity: ");
+        }
+
+        int quantity = scanner.nextInt();
+        scanner.nextLine();
+
+        if (quantity == 0) {
+            if (currentQuantity > 0) {
+                shoppingListService.removeFromShoppingList(currentUser.getUserId(), productId);
+                System.out.println("\nProduct removed from shopping list.");
+            } else {
+                System.out.println("Quantity must be greater than 0.");
+            }
+        } else if (quantity < 0) {
+            System.out.println("Quantity must be greater than 0.");
+        } else {
+            if (currentQuantity > 0) {
+                shoppingListService.updateQuantity(currentUser.getUserId(), productId, quantity);
+                System.out.println("\nShopping list updated successfully!");
+            } else {
+                shoppingListService.addToShoppingList(currentUser.getUserId(), productId, quantity);
+                System.out.println("\nProduct added to shopping list successfully!");
+            }
         }
     }
 
-    private static void handleAddProduct() {
-        try {
-            System.out.print("Product Name: ");
-            String name = scanner.nextLine();
-            System.out.print("Price: ");
-            double price = scanner.nextDouble();
-            System.out.print("Quantity: ");
-            int quantity = scanner.nextInt();
-            scanner.nextLine();
+    private static void handleShoppingList() throws SQLException {
+        List<ShoppingList> items = shoppingListService.getShoppingList(currentUser.getUserId());
+        if (items.isEmpty()) {
+            System.out.println("\nYour shopping list is empty.");
+            return;
+        }
 
+        System.out.println("\nShopping List");
+        double total = 0;
+        for (ShoppingList item : items) {
+            Product product = productService.getProductById(item.getProductId());
+            Stall stall = stallService.getById(product.getStallId());
+            double itemTotal = product.getPrice() * item.getQuantity();
+            total += itemTotal;
+
+            if (product.getQuantity() < item.getQuantity()) {
+                System.out.println(product.getProductId() + ". " + product.getName() + " (" + item.getQuantity() + ") - $" + product.getPrice() + " | " + stall.getName() + " (only " + product.getQuantity() + " left in stock)");
+            } else {
+                System.out.println(product.getProductId() + ". " + product.getName() + " (" + item.getQuantity() + ") - $" + product.getPrice() + " | " + stall.getName());
+            }
+        }
+
+        System.out.println("\nTotal: $" + total);
+
+        System.out.println("\n1. Finish Shopping");
+        System.out.println("0. Go Back");
+        System.out.print("Choose an option: ");
+
+        int choice = scanner.nextInt();
+        scanner.nextLine();
+
+        if (choice == 1) {
+            shoppingListService.moveToPurchaseHistory(currentUser.getUserId());
+            System.out.println("\nShopping completed successfully. Items have been moved to purchase history.");
+        }
+    }
+
+    private static void handlePurchaseHistory() throws SQLException {
+        List<PurchaseHistory> history = purchaseHistoryService.getCustomerPurchaseHistory(currentUser.getUserId());
+        if (history.isEmpty()) {
+            System.out.println("\nNo purchase history available.");
+            return;
+        }
+
+        System.out.println("\nPurchase History");
+        for (PurchaseHistory item : history) {
+            Product product = productService.getProductById(item.getProductId());
+            double total = item.getPrice() * item.getQuantity();
+
+            System.out.println(product.getName() + " - Price: $" + item.getPrice() + " - Quantity: " + item.getQuantity() + " - Total: $" + total + " - Date: " + item.getPurchaseDate());
+        }
+    }
+
+    private static void handleSellerMenu() throws SQLException {
+        while (true) {
+            showSellerMenu();
             try {
-                Seller seller = (Seller) service.getCurrentUser();
-                Stall stall = seller.getStall();
-                if (stall == null) {
-                    System.out.println("No stall assigned to you.");
-                    return;
-                }
-                service.addProductToStall(stall.getId(), name, price, quantity);
-                System.out.println("Product added successfully.");
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error: " + e.getMessage());
-            }
-        } catch (java.util.InputMismatchException e) {
-            System.out.println("Invalid input. Please enter a valid number for price and quantity.");
-            scanner.nextLine();
-        } catch (Exception e) {
-            System.out.println("An error occurred while adding the product.");
-        }
-    }
-
-    private static void handleModifyProduct() {
-        try {
-            Seller seller = (Seller) service.getCurrentUser();
-            if (seller.getStall() == null || seller.getStall().getProducts().isEmpty()) {
-                System.out.println("No products available to modify.");
-                return;
-            }
-
-            System.out.println("\nYour Products:");
-            Set<Product> products = seller.getStall().getProducts();
-            for (Product product : products) {
-                System.out.println(product);
-            }
-
-            System.out.print("Enter product ID to modify: ");
-            int productId = scanner.nextInt();
-            scanner.nextLine();
-            System.out.print("New Name: ");
-            String name = scanner.nextLine();
-            System.out.print("New Price: ");
-            double price = scanner.nextDouble();
-            System.out.print("New Quantity: ");
-            int quantity = scanner.nextInt();
-            scanner.nextLine();
-
-            try {
-                service.modifyProduct(productId, name, price, quantity);
-                System.out.println("Product modified successfully");
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error: " + e.getMessage());
-            }
-        } catch (java.util.InputMismatchException e) {
-            System.out.println("Invalid input. Please enter valid numbers for ID, price, and quantity.");
-            scanner.nextLine();
-        } catch (Exception e) {
-            System.out.println("An error occurred while modifying the product.");
-        }
-    }
-
-    private static void handleDeleteProduct() {
-        try {
-            Seller seller = (Seller) service.getCurrentUser();
-            if (seller.getStall() == null || seller.getStall().getProducts().isEmpty()) {
-                System.out.println("No products available to delete.");
-                return;
-            }
-
-            System.out.println("\nYour Products:");
-            Set<Product> products = seller.getStall().getProducts();
-            for (Product product : products) {
-                System.out.println(product);
-            }
-
-            System.out.print("Enter product ID to delete: ");
-            int productId = scanner.nextInt();
-            scanner.nextLine();
-
-            try {
-                service.deleteProduct(productId);
-                System.out.println("Product deleted successfully");
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error: " + e.getMessage());
-            }
-        } catch (java.util.InputMismatchException e) {
-            System.out.println("Invalid input. Please enter a valid number for the product ID.");
-            scanner.nextLine();
-        } catch (Exception e) {
-            System.out.println("An error occurred while deleting the product.");
-        }
-    }
-
-    private static void handleAdminSession() {
-        boolean inSession = true;
-        while (inSession) {
-            try {
-                System.out.println("\n=== Admin Menu ===");
-                System.out.println("1. View Customers");
-                System.out.println("2. View Sellers");
-                System.out.println("3. Create Market");
-                System.out.println("4. Logout");
-                System.out.print("Choose an option: ");
-
                 int choice = scanner.nextInt();
                 scanner.nextLine();
 
                 switch (choice) {
-                    case 1 -> handleViewCustomers();
-                    case 2 -> handleViewSellers();
-                    case 3 -> handleCreateMarket();
-                    case 4 -> {
-                        service.logout();
-                        inSession = false;
-                    }
-                    default -> System.out.println("Invalid option. Please try again.");
+                    case 0:
+                        currentUser = null;
+                        return;
+                    case 1:
+                        handleViewSellerProducts();
+                        break;
+                    case 2:
+                        handleAddProduct();
+                        break;
+                    case 3:
+                        handleUpdateProduct();
+                        break;
+                    case 4:
+                        handleDeleteProduct();
+                        break;
+                    default:
+                        System.out.println("Invalid option. Please try again.");
                 }
-            } catch (java.util.InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a number.");
+            } catch (InputMismatchException e) {
+                System.out.println("Please enter a valid number.");
                 scanner.nextLine();
-            } catch (Exception e) {
-                System.out.println("An error occurred. Please try again.");
             }
         }
     }
 
-    private static void handleViewCustomers() {
-        try {
-            List<Customer> customers = service.getAllCustomers();
-            if (customers.isEmpty()) {
-                System.out.println("No customers registered.");
-                return;
-            }
+    private static void handleViewSellerProducts() throws SQLException {
+        Seller seller = (Seller) currentUser;
+        Stall stall = stallService.getBySellerId(seller.getUserId());
+        if (stall == null) {
+            System.out.println("\nError: No stall found for this seller.");
+            return;
+        }
 
-            System.out.println("\nCustomers:");
-            for (Customer customer : customers) {
-                System.out.println(customer.getId() + ". " + customer.getUsername() + 
-                                 " - " + customer.getEmail() + 
-                                 " (Purchases: " + customer.getPurchaseHistory().size() + ")");
-            }
-        } catch (java.util.InputMismatchException e) {
-            System.out.println("Invalid input. Please enter a number.");
-            scanner.nextLine();
-        } catch (Exception e) {
-            System.out.println("An error occurred while viewing customers.");
+        List<Product> products = productService.getProductsByStall(stall.getStallId());
+        if (products.isEmpty()) {
+            System.out.println("\nNo products available in your stall.");
+            return;
+        }
+
+        System.out.println("\nAll Products");
+        for (Product product : products) {
+            System.out.println(product.getProductId() + ". " + product.getName() + " (" + product.getQuantity() + ") - $" + product.getPrice());
         }
     }
 
-    private static void handleViewSellers() {
-        try {
-            List<Seller> sellers = service.getAllSellers();
-            if (sellers.isEmpty()) {
-                System.out.println("No sellers registered.");
-                return;
-            }
+    private static int handleSellerProducts() throws SQLException {
+        handleViewSellerProducts();
+        Seller seller = (Seller) currentUser;
+        Stall stall = stallService.getBySellerId(seller.getUserId());
 
-            System.out.println("\nSellers:");
-            for (Seller seller : sellers) {
-                System.out.println(seller.getId() + ". " + seller.getUsername() + 
-                                 " - " + seller.getEmail());
-                Stall stall = seller.getStall();
-                if (stall != null) {
-                    System.out.println("   Stall: " + stall.getName() + 
-                                     " (Products: " + stall.getProducts().size() + ")");
-                }
-            }
-        } catch (java.util.InputMismatchException e) {
-            System.out.println("Invalid input. Please enter a number.");
-            scanner.nextLine();
-        } catch (Exception e) {
-            System.out.println("An error occurred while viewing sellers.");
+        System.out.print("\nEnter product ID (0 to go back): ");
+        int productId = scanner.nextInt();
+        scanner.nextLine();
+        if (productId == 0) return 0;
+
+        Product product = productService.getProductById(productId);
+        if (product == null || product.getStallId() != stall.getStallId()) {
+            System.out.println("Invalid product ID.");
+        } else {
+            return productId;
         }
+        return 0;
     }
 
-    private static void handleCreateMarket() {
-        try {
-            System.out.print("Market Name: ");
-            String name = scanner.nextLine();
-            System.out.print("Location: ");
-            String location = scanner.nextLine();
-
-            try {
-                service.createMarket(name, location);
-                System.out.println("Market created successfully.");
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error: " + e.getMessage());
-            }
-        } catch (Exception e) {
-            System.out.println("An error occurred while creating the market.");
+    private static void handleAddProduct() throws SQLException {
+        Seller seller = (Seller) currentUser;
+        Stall stall = stallService.getBySellerId(seller.getUserId());
+        if (stall == null) {
+            System.out.println("\nError: No stall found for this seller.");
+            return;
         }
+
+        System.out.println("\nAdd a Product");
+        System.out.print("Enter product name: ");
+        String name = scanner.nextLine();
+        if (name.isEmpty()) {
+            System.out.println("Name cannot be empty.");
+            return;
+        }
+
+        System.out.print("Enter price: ");
+        double price = scanner.nextDouble();
+        scanner.nextLine();
+        if (price <= 0) {
+            System.out.println("Price must be greater than 0.");
+            return;
+        }
+
+        System.out.print("Enter quantity: ");
+        int quantity = scanner.nextInt();
+        scanner.nextLine();
+        if (quantity <= 0) {
+            System.out.println("Quantity must be greater than 0.");
+            return;
+        }
+
+        productService.createProduct(name, price, quantity, stall.getStallId());
+        System.out.println("\nProduct added successfully!");
+    }
+
+    private static void handleUpdateProduct() throws SQLException {
+        int productId = handleSellerProducts();
+        Product product = productService.getProductById(productId);
+
+        System.out.println("\nEdit a Product");
+        System.out.print("New name (" + product.getName() + "): ");
+        String newName = scanner.nextLine();
+        System.out.print("New price (" + product.getPrice() + "): ");
+        String priceStr = scanner.nextLine();
+        System.out.print("New quantity (" + product.getQuantity() + "): ");
+        String quantityStr = scanner.nextLine();
+
+        if (newName.isEmpty()) newName = product.getName();
+        double newPrice = priceStr.isEmpty() ? product.getPrice() : Double.parseDouble(priceStr);
+        int newQuantity = quantityStr.isEmpty() ? product.getQuantity() : Integer.parseInt(quantityStr);
+
+        productService.updateProduct(productId, newName, newPrice, newQuantity);
+        System.out.println("\nProduct updated successfully!");
+    }
+
+    private static void handleDeleteProduct() throws SQLException {
+        int productId = handleSellerProducts();
+
+        productService.deleteProduct(productId);
+        System.out.println("\nProduct deleted successfully!");
     }
 }

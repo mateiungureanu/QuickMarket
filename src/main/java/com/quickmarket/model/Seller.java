@@ -1,31 +1,21 @@
 package com.quickmarket.model;
 
 public class Seller extends User {
-    private Stall stall;
-    private double totalKilogramsSold;
+    private double totalQuantity;
     private double totalRevenue;
-    public Seller(int id, String username, String password, String email) {
-        super(id, username, password, email);
-        this.totalKilogramsSold = 0.0;
-        this.totalRevenue = 0;
+
+    public Seller(int userId, String name, String email, String password) {
+        super(userId, name, email, password, "SELLER");
+        this.totalQuantity = 0.0;
+        this.totalRevenue = 0.0;
     }
 
-    public Stall getStall() {
-        return stall;
+    public double getTotalQuantity() {
+        return totalQuantity;
     }
 
-    public void setStall(Stall stall) {
-        if (this.stall == null) {
-            this.stall = stall;
-        }
-    }
-
-    public double getTotalKilogramsSold() {
-        return totalKilogramsSold;
-    }
-
-    public void setTotalKilogramsSold(double totalKilogramsSold) {
-        this.totalKilogramsSold = totalKilogramsSold;
+    public void setTotalQuantity(double totalQuantity) {
+        this.totalQuantity = totalQuantity;
     }
 
     public double getTotalRevenue() {
@@ -35,16 +25,4 @@ public class Seller extends User {
     public void setTotalRevenue(double totalRevenue) {
         this.totalRevenue = totalRevenue;
     }
-
-    @Override
-    public String toString() {
-        return "Seller{" +
-                "id=" + getId() +
-                ", username='" + getUsername() + '\'' +
-                ", email='" + getEmail() + '\'' +
-                ", stall=" + (stall != null ? stall.getName() : "No stall") +
-                ", totalKilogramsSold=" + totalKilogramsSold +
-                ", totalRevenue=" + totalRevenue +
-                '}';
-    }
-} 
+}

@@ -1,51 +1,31 @@
 package com.quickmarket.model;
 
-import java.util.*;
-
 public class Stall {
-    private final int id;
-    private final String name;
-    private final Seller owner;
-    private final Set<Product> products;
+    private final int stallId;
+    private String name;
+    private final int sellerId;
+    private final int marketId;
 
-    public Stall(int id, String name, Seller owner) {
-        this.id = id;
+    public Stall(int stallId, String name, int sellerId, int marketId) {
+        this.stallId = stallId;
         this.name = name;
-        this.owner = owner;
-        this.products = new TreeSet<>(Comparator.comparing(Product::getName));
+        this.sellerId = sellerId;
+        this.marketId = marketId;
     }
 
-    public int getId() {
-        return id;
+    public int getStallId() {
+        return stallId;
     }
 
     public String getName() {
         return name;
     }
 
-    public Seller getOwner() {
-        return owner;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public Set<Product> getProducts() {
-        return products;
+    public int getSellerId() {
+        return sellerId;
     }
-
-    public void addProduct(Product product) {
-        products.add(product);
-    }
-
-    public void removeProduct(Product product) {
-        products.remove(product);
-    }
-
-    @Override
-    public String toString() {
-        return "Stall{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", owner=" + owner.getUsername() +
-                ", products=" + products.size() +
-                '}';
-    }
-} 
+}

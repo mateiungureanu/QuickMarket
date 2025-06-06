@@ -1,22 +1,24 @@
 package com.quickmarket.model;
 
 public class Product {
-    private final int id;
+    private final int productId;
+    private final int stallId;
     private String name;
-    private double price;
+    private final double price;
     private int quantity;
-    private final Stall stall;
+    private final boolean deleted;
 
-    public Product(int id, String name, double price, int quantity, Stall stall) {
-        this.id = id;
+    public Product(int productId, String name, double price, int quantity, int stallId) {
+        this.productId = productId;
         this.name = name;
         this.price = price;
         this.quantity = quantity;
-        this.stall = stall;
+        this.stallId = stallId;
+        this.deleted = false;
     }
 
-    public int getId() {
-        return id;
+    public int getProductId() {
+        return productId;
     }
 
     public String getName() {
@@ -31,10 +33,6 @@ public class Product {
         return price;
     }
 
-    public void setPrice(double price) {
-        this.price = price;
-    }
-
     public int getQuantity() {
         return quantity;
     }
@@ -43,16 +41,11 @@ public class Product {
         this.quantity = quantity;
     }
 
-    public Stall getStall() {
-        return stall;
+    public int getStallId() {
+        return stallId;
     }
 
-    @Override
-    public String toString() {
-        return id +
-                ". " + name +
-                " - " + price +
-                "$ (Quantity: " + quantity +
-                ")";
+    public boolean isDeleted() {
+        return deleted;
     }
-} 
+}

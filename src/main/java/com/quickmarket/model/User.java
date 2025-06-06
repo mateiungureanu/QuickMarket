@@ -1,40 +1,37 @@
 package com.quickmarket.model;
 
-public abstract class User {
-    private final int id;
+public class User {
+    private final int userId;
     private final String username;
-    private final String password;
     private final String email;
+    private final String password;
+    private final String userType;
 
-    public User(int id, String username, String password, String email) {
-        this.id = id;
+    public User(int userId, String username, String email, String password, String userType) {
+        this.userId = userId;
         this.username = username;
-        this.password = password;
         this.email = email;
+        this.password = password;
+        this.userType = userType;
     }
 
-    public int getId() {
-        return id;
+    public int getUserId() {
+        return userId;
     }
 
     public String getUsername() {
         return username;
     }
 
-    public String getPassword() {
-        return password;
-    }
-
     public String getEmail() {
         return email;
     }
 
-    @Override
-    public String toString() {
-        return "User{" +
-                "id=" + id +
-                ", username='" + username + '\'' +
-                ", email='" + email + '\'' +
-                '}';
+    public String getPassword() {
+        return password;
     }
-} 
+
+    public String getUserType() {
+        return userType;
+    }
+}
