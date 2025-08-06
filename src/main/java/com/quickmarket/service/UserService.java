@@ -65,4 +65,8 @@ public class UserService {
         }
         return user;
     }
+
+    public User getUserById(int userId) throws SQLException {
+        return userDAO.getUserById(userId);
+    }
 }

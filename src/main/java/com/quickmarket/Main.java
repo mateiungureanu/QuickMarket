@@ -18,6 +18,8 @@ public class Main {
     private static ProductService productService;
     private static ShoppingListService shoppingListService;
     private static PurchaseHistoryService purchaseHistoryService;
+    private static AlertService alertService;
+    private static com.quickmarket.utils.SocketClient socketClient;
 
     private static void initializeServices() throws SQLException {
         userService = new UserService();
@@ -27,11 +29,13 @@ public class Main {
         productService = new ProductService();
         shoppingListService = new ShoppingListService();
         purchaseHistoryService = new PurchaseHistoryService();
+        alertService = new AlertService();
     }
 
     public static void main(String[] args) {
         try {
             initializeServices();
+            
             while (true) {
                 showMainMenu();
                 int choice = scanner.nextInt();
@@ -40,6 +44,9 @@ public class Main {
                 switch (choice) {
                     case 0 -> {
                         System.out.println("Goodbye!");
+                        if (socketClient != null) {
+                            socketClient.disconnect();
+                        }
                         return;
                     }
                     case 1 -> handleLogin();
@@ -79,20 +86,47 @@ public class Main {
     }
 
     private static void showSellerMenu() {
-        System.out.println("\n1. View all products");
-        System.out.println("2. Add a product");
-        System.out.println("3. Edit a product");
-        System.out.println("4. Delete a product");
-        System.out.println("0. Logout");
-        System.out.print("Choose an option: ");
+        try {
+            int unreadCount = alertService.getUnreadAlertCount(currentUser.getUserId());
+            String alertOption = unreadCount > 0 ? "5. Alerts (" + unreadCount + ")" : "5. Alerts";
+            System.out.println("\n1. View all products");
+            System.out.println("2. Add a product");
+            System.out.println("3. Edit a product");
+            System.out.println("4. Delete a product");
+            System.out.println(alertOption);
+            System.out.println("0. Logout");
+            System.out.print("Choose an option: ");
+        } catch (SQLException e) {
+            System.out.println("Error getting alert count: " + e.getMessage());
+            System.out.println("\n1. View all products");
+            System.out.println("2. Add a product");
+            System.out.println("3. Edit a product");
+            System.out.println("4. Delete a product");
+            System.out.println("5. Alerts");
+            System.out.println("0. Logout");
+            System.out.print("Choose an option: ");
+        }
     }
 
     private static void showCustomerMenu() {
-        System.out.println("\n1. Choose Product");
-        System.out.println("2. View shopping list");
-        System.out.println("3. View purchase history");
-        System.out.println("0. Logout");
-        System.out.print("Choose an option: ");
+        try {
+            int unreadCount = alertService.getUnreadAlertCount(currentUser.getUserId());
+            String alertOption = unreadCount > 0 ? "4. Alerts (" + unreadCount + ")" : "4. Alerts";
+            System.out.println("\n1. Choose Product");
+            System.out.println("2. View shopping list");
+            System.out.println("3. View purchase history");
+            System.out.println(alertOption);
+            System.out.println("0. Logout");
+            System.out.print("Choose an option: ");
+        } catch (SQLException e) {
+            System.out.println("Error getting alert count: " + e.getMessage());
+            System.out.println("\n1. Choose Product");
+            System.out.println("2. View shopping list");
+            System.out.println("3. View purchase history");
+            System.out.println("4. Alerts");
+            System.out.println("0. Logout");
+            System.out.print("Choose an option: ");
+        }
     }
 
     private static void handleLogin() {
@@ -110,6 +144,17 @@ public class Main {
 
             currentUser = user;
             System.out.println("Login successful!");
+
+            try {
+                socketClient = new com.quickmarket.utils.SocketClient(user.getUserId());
+                if (socketClient.connect()) {
+                    System.out.println("Connected to real-time alert system!");
+                } else {
+                    System.out.println("Warning: Could not connect to real-time alerts. Alerts will be available in the Alerts tab.");
+                }
+            } catch (Exception e) {
+                System.out.println("Warning: Real-time alerts unavailable. Alerts will be available in the Alerts tab.");
+            }
 
             switch (user.getUserType()) {
                 case "ADMIN" -> handleAdminMenu();
@@ -218,6 +263,9 @@ public class Main {
 
                 switch (choice) {
                     case 0:
+                        if (socketClient != null) {
+                            socketClient.disconnect();
+                        }
                         currentUser = null;
                         return;
                     case 1:
@@ -356,6 +404,9 @@ public class Main {
 
                 switch (choice) {
                     case 0:
+                        if (socketClient != null) {
+                            socketClient.disconnect();
+                        }
                         currentUser = null;
                         return;
                     case 1:
@@ -366,6 +417,9 @@ public class Main {
                         break;
                     case 3:
                         handlePurchaseHistory();
+                        break;
+                    case 4:
+                        handleCustomerAlerts();
                         break;
                     default:
                         System.out.println("Invalid option. Please try again.");
@@ -402,10 +456,24 @@ public class Main {
             }
         }
 
-        System.out.print("\nSelect product ID (0 to go back): ");
-        int productId = scanner.nextInt();
-        scanner.nextLine();
-        if (productId == 0) return;
+        System.out.println("\n0. Go back");
+        System.out.println("00. Request a product");
+        System.out.print("\nSelect product ID or option: ");
+        String input = scanner.nextLine();
+        
+        if (input.equals("0")) return;
+        if (input.equals("00")) {
+            handleRequestProduct();
+            return;
+        }
+        
+        int productId;
+        try {
+            productId = Integer.parseInt(input);
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid input. Please try again.");
+            return;
+        }
 
         Product selectedProduct = products.stream().filter(p -> p.getProductId() == productId).findFirst().orElse(null);
 
@@ -506,6 +574,9 @@ public class Main {
 
                 switch (choice) {
                     case 0:
+                        if (socketClient != null) {
+                            socketClient.disconnect();
+                        }
                         currentUser = null;
                         return;
                     case 1:
@@ -519,6 +590,9 @@ public class Main {
                         break;
                     case 4:
                         handleDeleteProduct();
+                        break;
+                    case 5:
+                        handleSellerAlerts();
                         break;
                     default:
                         System.out.println("Invalid option. Please try again.");
@@ -630,5 +704,196 @@ public class Main {
 
         productService.deleteProduct(productId);
         System.out.println("\nProduct deleted successfully!");
+    }
+
+    private static void handleCustomerAlerts() throws SQLException {
+        List<Alert> alerts = alertService.getFilteredAlertsForCustomer(currentUser.getUserId());
+        
+        for (Alert alert : alerts) {
+            if (!alert.isRead()) {
+                alertService.markAlertAsRead(alert.getId());
+            }
+        }
+        
+        if (alerts.isEmpty()) {
+            System.out.println("\nNo alerts available.");
+            return;
+        }
+        
+        System.out.println("\nAlerts");
+        
+        System.out.println("\n--- Your Requests ---");
+        boolean hasOwnRequests = false;
+        for (Alert alert : alerts) {
+            if (alert.getType().equals("customer_to_seller") && alert.getFromUserId() == currentUser.getUserId()) {
+                String status = alert.getStatusCustomer().equals("completed") ? "[COMPLETED]" : "[UNCOMPLETED]";
+                System.out.println(alert.getId() + ". " + status + " Request for " + alert.getProductQuantity() + " kg of " + alert.getProductName());
+                hasOwnRequests = true;
+            }
+        }
+        if (!hasOwnRequests) {
+            System.out.println("No requests found.");
+        }
+        
+        System.out.println("\n--- Seller Responses ---");
+        boolean hasSellerResponses = false;
+        for (Alert alert : alerts) {
+            if (alert.getType().equals("seller_to_customer")) {
+                Stall stall = stallService.getBySellerId(alert.getFromUserId());
+                String stallName = (stall != null) ? stall.getName() : "Stall";
+                String message = alertService.formatSellerResponseAlert(stallName, alert.getProductName(), alert.getProductQuantity());
+                System.out.println(alert.getId() + ". " + message);
+                hasSellerResponses = true;
+            }
+        }
+        if (!hasSellerResponses) {
+            System.out.println("No seller responses found.");
+        }
+        
+        System.out.println("\n1. Mark a request as completed");
+        System.out.println("0. Go back");
+        System.out.print("Choose an option: ");
+        int choice = scanner.nextInt();
+        scanner.nextLine();
+        switch (choice) {
+            case 0:
+                return;
+            case 1:
+                handleMarkRequestCompleted();
+                break;
+            default:
+                System.out.println("Invalid option. Please try again.");
+        }
+    }
+
+    private static void handleSellerAlerts() throws SQLException {
+        List<Alert> alerts = alertService.getFilteredAlertsForSeller(currentUser.getUserId());
+        
+        for (Alert alert : alerts) {
+            if (!alert.isRead()) {
+                alertService.markAlertAsRead(alert.getId());
+            }
+        }
+        
+        if (alerts.isEmpty()) {
+            System.out.println("\nNo customer requests available.");
+            return;
+        }
+        
+        System.out.println("\nCustomer Requests");
+        for (Alert alert : alerts) {
+            if (alert.getType().equals("customer_to_seller")) {
+                String customerName = userService.getUserById(alert.getFromUserId()).getUsername();
+                String message = alertService.formatCustomerRequestAlert(customerName, alert.getProductName(), alert.getProductQuantity());
+                System.out.println(alert.getId() + ". " + message);
+            }
+        }
+        
+        System.out.println("\n1. Mark a request as resolved");
+        System.out.println("0. Go back");
+        System.out.print("Choose an option: ");
+        int choice = scanner.nextInt();
+        scanner.nextLine();
+        switch (choice) {
+            case 0:
+                return;
+            case 1:
+                handleMarkRequestCompleted();
+                break;
+            default:
+                System.out.println("Invalid option. Please try again.");
+        }
+    }
+
+    private static void handleMarkRequestCompleted() throws SQLException {
+        if (currentUser.getUserType().equals("CUSTOMER")) {
+            List<Alert> customerRequests = alertService.getFilteredAlertsForCustomer(currentUser.getUserId())
+                .stream()
+                .filter(alert -> alert.getType().equals("customer_to_seller") && 
+                               alert.getFromUserId() == currentUser.getUserId() &&
+                               !alert.getStatusCustomer().equals("completed"))
+                .toList();
+                
+            if (customerRequests.isEmpty()) {
+                System.out.println("No uncompleted requests found.");
+                return;
+            }
+            
+            System.out.println("\nYour Uncompleted Requests:");
+            for (Alert alert : customerRequests) {
+                System.out.println(alert.getId() + ". Request for " + alert.getProductQuantity() + " kg of " + alert.getProductName());
+            }
+            
+            System.out.print("Enter request ID to mark as completed: ");
+            int alertId = scanner.nextInt();
+            scanner.nextLine();
+            
+            Alert alert = customerRequests.stream()
+                .filter(a -> a.getId() == alertId)
+                .findFirst()
+                .orElse(null);
+                
+            if (alert == null) {
+                System.out.println("Invalid request ID.");
+                return;
+            }
+            
+            alertService.markCustomerRequestAsCompleted(currentUser.getUserId(), alert.getProductName(), alert.getProductQuantity());
+            System.out.println("\nRequest marked as completed!");
+            
+        } else if (currentUser.getUserType().equals("SELLER")) {
+            System.out.print("Enter alert ID to mark as resolved: ");
+            int alertId = scanner.nextInt();
+            scanner.nextLine();
+            
+            Alert alert = alertService.getAlertById(alertId);
+            if (alert == null || alert.getToUserId() != currentUser.getUserId()) {
+                System.out.println("Invalid alert ID.");
+                return;
+            }
+            
+            try {
+                int responseAlertId = alertService.markRequestAsResolved(currentUser.getUserId(), alertId);
+                
+                Stall stall = stallService.getBySellerId(currentUser.getUserId());
+                String stallName = (stall != null) ? stall.getName() : "Stall";
+                String message = alertService.formatSellerResponseAlert(stallName, alert.getProductName(), alert.getProductQuantity());
+                
+                boolean delivered = com.quickmarket.utils.AlertSender.sendAlert(alert.getFromUserId(), responseAlertId, message);
+                if (delivered) {
+                    alertService.markAlertAsRead(responseAlertId);
+                }
+                
+                System.out.println("\nRequest marked as resolved and customer notified!");
+                
+            } catch (IllegalArgumentException e) {
+                System.out.println("Error: " + e.getMessage());
+            } catch (IllegalStateException e) {
+                System.out.println("Cannot resolve: " + e.getMessage());
+            }
+        }
+    }
+
+    private static void handleRequestProduct() throws SQLException {
+        System.out.println("\nRequest a Product");
+        System.out.print("Enter product name: ");
+        String productName = scanner.nextLine();
+        if (productName.isEmpty()) {
+            System.out.println("Product name cannot be empty.");
+            return;
+        }
+        System.out.print("Enter desired quantity (kg): ");
+        int productQuantity = scanner.nextInt();
+        scanner.nextLine();
+        if (productQuantity <= 0) {
+            System.out.println("Quantity must be greater than 0.");
+            return;
+        }
+        
+        String customerName = currentUser.getUsername();
+        List<Integer> alertIds = alertService.sendCustomerRequestWithNotification(
+            currentUser.getUserId(), customerName, productName, productQuantity);
+        
+        System.out.println("\nRequest sent to " + alertIds.size() + " relevant sellers!");
     }
 }

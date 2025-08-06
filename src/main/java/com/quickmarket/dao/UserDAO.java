@@ -130,4 +130,17 @@ public class UserDAO {
         }
         return users;
     }
+
+    public User getUserById(int userId) throws SQLException {
+        String sql = "SELECT * FROM user WHERE user_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapUser(rs);
+                }
+            }
+        }
+        return null;
+    }
 }

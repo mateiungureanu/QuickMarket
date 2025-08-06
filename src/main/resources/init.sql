@@ -88,6 +88,21 @@ CREATE TABLE purchase_history (
         ON UPDATE CASCADE
 );
 
+CREATE TABLE alerts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    from_user_id INT NOT NULL,
+    to_user_id INT NOT NULL,
+    product_name VARCHAR(255),
+    product_quantity INT,
+    type VARCHAR(32) NOT NULL,
+    status_customer VARCHAR(32) DEFAULT 'uncompleted',
+    status_seller VARCHAR(32) DEFAULT 'unresponded',
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (from_user_id) REFERENCES user(user_id),
+    FOREIGN KEY (to_user_id) REFERENCES user(user_id)
+);
+
 INSERT INTO user (username, email, password, user_type) VALUES 
 ('admin', 'admin@quickmarket.com', 'admin', 'ADMIN');
 
