@@ -21,23 +21,11 @@ public class AlertSender {
             
             try {
                 String response = reader.readLine();
-                if ("DELIVERED".equals(response)) {
-                    return true;
-                } else {
-                    return false;
-                }
+                return "DELIVERED".equals(response);
             } catch (Exception e) {
                 return false;
             }
             
-        } catch (IOException e) {
-            return false;
-        }
-    }
-    
-    public static boolean isServerAvailable() {
-        try (Socket socket = new Socket(SERVER_HOST, SERVER_PORT)) {
-            return true;
         } catch (IOException e) {
             return false;
         }

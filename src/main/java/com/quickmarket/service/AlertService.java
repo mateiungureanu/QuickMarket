@@ -1,11 +1,9 @@
 package com.quickmarket.service;
 
 import com.quickmarket.dao.AlertDAO;
-import com.quickmarket.dao.SellerDAO;
 import com.quickmarket.dao.StallDAO;
 import com.quickmarket.dao.ProductDAO;
 import com.quickmarket.model.Alert;
-import com.quickmarket.model.Seller;
 import com.quickmarket.model.Stall;
 import com.quickmarket.model.Product;
 
@@ -14,63 +12,13 @@ import java.util.List;
 
 public class AlertService {
     private final AlertDAO alertDAO;
-    private final SellerDAO sellerDAO;
     private final StallDAO stallDAO;
     private final ProductDAO productDAO;
 
     public AlertService() throws SQLException {
         this.alertDAO = new AlertDAO();
-        this.sellerDAO = new SellerDAO();
         this.stallDAO = new StallDAO();
         this.productDAO = new ProductDAO();
-    }
-
-    public List<Integer> sendCustomerRequest(int customerId, String productName, int productQuantity) throws SQLException {
-        List<Seller> allSellers = sellerDAO.getAllSellers();
-        List<Integer> alertIds = new java.util.ArrayList<>();
-        
-        for (Seller seller : allSellers) {
-            Stall sellerStall = stallDAO.getBySellerId(seller.getUserId());
-            if (sellerStall != null) {
-                List<Product> sellerProducts = productDAO.getByStall(sellerStall.getStallId());
-                boolean hasProduct = sellerProducts.stream()
-                    .anyMatch(p -> p.getName().equalsIgnoreCase(productName) && p.getQuantity() >= productQuantity);
-                if (!hasProduct) {
-                    Alert alert = new Alert(0, customerId, seller.getUserId(), productName, productQuantity, 
-                                         "customer_to_seller", false, false, false, null);
-                    int alertId = alertDAO.create(alert);
-                    alertIds.add(alertId);
-                }
-            }
-        }
-        return alertIds;
-    }
-    
-    public List<Integer> sendCustomerRequestWithNotification(int customerId, String customerName, String productName, int productQuantity) throws SQLException {
-        List<Seller> allSellers = sellerDAO.getAllSellers();
-        List<Integer> alertIds = new java.util.ArrayList<>();
-        String message = formatCustomerRequestAlert(customerName, productName, productQuantity);
-        
-        for (Seller seller : allSellers) {
-            Stall sellerStall = stallDAO.getBySellerId(seller.getUserId());
-            if (sellerStall != null) {
-                List<Product> sellerProducts = productDAO.getByStall(sellerStall.getStallId());
-                boolean hasProduct = sellerProducts.stream()
-                    .anyMatch(p -> p.getName().equalsIgnoreCase(productName) && p.getQuantity() >= productQuantity);
-                if (!hasProduct) {
-                    Alert alert = new Alert(0, customerId, seller.getUserId(), productName, productQuantity, 
-                                         "customer_to_seller", false, false, false, null);
-                    int alertId = alertDAO.create(alert);
-                    alertIds.add(alertId);
-                    
-                    boolean delivered = com.quickmarket.utils.AlertSender.sendAlert(seller.getUserId(), alertId, message);
-                    if (delivered) {
-                        alertDAO.markAsRead(alertId);
-                    }
-                }
-            }
-        }
-        return alertIds;
     }
 
     public List<Integer> sendCustomerRequestWithNotificationInMarket(int customerId, String customerName, String productName, int productQuantity, int marketId) throws SQLException {
@@ -117,20 +65,12 @@ public class AlertService {
         return alertId;
     }
 
-    public List<Alert> getAlertsForUser(int userId) throws SQLException {
-        return alertDAO.getAlertsForUser(userId);
-    }
-
     public List<Alert> getFilteredAlertsForCustomer(int customerId) throws SQLException {
         return alertDAO.getFilteredAlertsForCustomer(customerId);
     }
 
     public List<Alert> getFilteredAlertsForSeller(int sellerId) throws SQLException {
         return alertDAO.getFilteredAlertsForSeller(sellerId);
-    }
-
-    public List<Alert> getUnreadAlertsForUser(int userId) throws SQLException {
-        return alertDAO.getUnreadAlertsForUser(userId);
     }
 
     public int getUnreadAlertCount(int userId) throws SQLException {
@@ -145,13 +85,6 @@ public class AlertService {
         alertDAO.markCustomerRequestAsCompleted(customerId, productName, productQuantity);
     }
 
-    public List<Alert> getCustomerRequestsForSeller(int sellerId) throws SQLException {
-        return alertDAO.getCustomerRequestsForSeller(sellerId);
-    }
-
-    public List<Alert> getSellerResponsesForCustomer(int customerId) throws SQLException {
-        return alertDAO.getSellerResponsesForCustomer(customerId);
-    }
 
     public Alert getAlertById(int alertId) throws SQLException {
         return alertDAO.getAlertById(alertId);

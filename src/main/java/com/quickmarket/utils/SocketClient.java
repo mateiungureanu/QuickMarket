@@ -70,15 +70,9 @@ public class SocketClient {
                     }
                 }
             } catch (IOException e) {
-                if (connected) {
-                    System.err.println("Error reading from socket: " + e.getMessage());
-                }
+                System.err.println("Error reading from socket: " + e.getMessage());
             }
         });
         listenerThread.start();
     }
-
-    public boolean isConnected() {
-        return connected && socket != null && !socket.isClosed();
-    }
-} 
+}

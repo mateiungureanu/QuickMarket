@@ -36,20 +36,6 @@ public class AlertDAO {
         }
     }
 
-    public List<Alert> getAlertsForUser(int userId) throws SQLException {
-        String sql = "SELECT * FROM alerts WHERE to_user_id = ? ORDER BY created_at DESC";
-        List<Alert> alerts = new ArrayList<>();
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, userId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    alerts.add(mapAlert(rs));
-                }
-            }
-        }
-        return alerts;
-    }
-
     public List<Alert> getFilteredAlertsForCustomer(int customerId) throws SQLException {
         // Get customer's own requests (grouped to avoid duplicates) and seller responses only for uncompleted requests
         String sql = "SELECT DISTINCT a1.* FROM alerts a1 WHERE " +
@@ -131,16 +117,6 @@ public class AlertDAO {
         String sql = "UPDATE alerts SET is_completed = 1 WHERE from_user_id = ? AND product_name = ? AND product_quantity = ? AND type = 'customer_to_seller'";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, customerId);
-            stmt.setString(2, productName);
-            stmt.setInt(3, productQuantity);
-            stmt.executeUpdate();
-        }
-    }
-
-    public void markSellerAsResponded(int sellerId, String productName, int productQuantity) throws SQLException {
-        String sql = "UPDATE alerts SET is_responded = 1 WHERE from_user_id = ? AND product_name = ? AND product_quantity = ? AND type = 'seller_to_customer'";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, sellerId);
             stmt.setString(2, productName);
             stmt.setInt(3, productQuantity);
             stmt.executeUpdate();

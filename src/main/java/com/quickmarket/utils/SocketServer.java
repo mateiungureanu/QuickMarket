@@ -25,8 +25,7 @@ public class SocketServer {
                         Socket clientSocket = serverSocket.accept();
                         new ClientHandler(clientSocket).start();
                     } catch (IOException e) {
-                        if (running) {
-                        }
+                        e.printStackTrace();
                     }
                 }
             } catch (IOException e) {
@@ -42,64 +41,6 @@ public class SocketServer {
             Thread.sleep(100);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        }
-    }
-
-    public static void stop() {
-        running = false;
-        try {
-            if (serverSocket != null && !serverSocket.isClosed()) {
-                serverSocket.close();
-            }
-        } catch (IOException e) {
-        }
-    }
-
-    public static void sendAlertToUser(int userId, String message) {
-        if (!running) return;
-        
-        PrintWriter writer = connectedUsers.get(userId);
-        if (writer != null) {
-            try {
-                writer.println("ALERT:" + message);
-                writer.flush();
-            } catch (Exception e) {
-            }
-        }
-    }
-
-    public static boolean sendAlertToUser(int userId, int alertId, String message) {
-        
-        if (!running) {
-            return false;
-        }
-        
-        PrintWriter writer = connectedUsers.get(userId);
-        if (writer != null) {
-            try {
-                String fullMessage = "ALERT:" + alertId + ":" + message;
-                writer.println(fullMessage);
-                writer.flush();
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    }
-
-    public static boolean isRunning() {
-        return running;
-    }
-
-    public static boolean tryConnect() {
-        try {
-            Socket testSocket = new Socket("localhost", PORT);
-            testSocket.close();
-            return true;
-        } catch (IOException e) {
-            return false;
         }
     }
 
@@ -138,9 +79,9 @@ public class SocketServer {
                     }
                 } else if (firstMessage != null && firstMessage.startsWith("SEND_ALERT:")) {
                     handleAlertCommand(firstMessage);
-                    return;
                 }
             } catch (IOException e) {
+                e.printStackTrace();
             } finally {
                 if (userId != -1) {
                     userDisconnected(userId);
@@ -150,6 +91,7 @@ public class SocketServer {
                     if (writer != null) writer.close();
                     if (clientSocket != null) clientSocket.close();
                 } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
         }
