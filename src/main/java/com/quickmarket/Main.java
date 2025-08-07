@@ -3,13 +3,20 @@ package com.quickmarket;
 import com.quickmarket.model.*;
 import com.quickmarket.service.*;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
 
 public class Main {
     private static final Scanner scanner = new Scanner(System.in);
+    private static final String LOG_FILE = "actions_log.csv";
+    private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    
     private static User currentUser;
     private static UserService userService;
     private static AdminService adminService;
@@ -21,6 +28,31 @@ public class Main {
     private static AlertService alertService;
     private static com.quickmarket.utils.SocketClient socketClient;
 
+    private static void logAction(String actionName) {
+        try (FileWriter writer = new FileWriter(LOG_FILE, true)) {
+            String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
+            writer.append(actionName)
+                  .append(",")
+                  .append(timestamp)
+                  .append("\n");
+        } catch (IOException e) {
+            System.err.println("Error writing to action log: " + e.getMessage());
+        }
+    }
+
+    private static void initializeLogFile() {
+        try {
+            java.io.File file = new java.io.File(LOG_FILE);
+            if (!file.exists() || file.length() == 0) {
+                try (FileWriter writer = new FileWriter(LOG_FILE, false)) {
+                    writer.append("Action,Timestamp\n");
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error initializing action log file: " + e.getMessage());
+        }
+    }
+
     private static void initializeServices() throws SQLException {
         userService = new UserService();
         adminService = new AdminService();
@@ -30,6 +62,8 @@ public class Main {
         shoppingListService = new ShoppingListService();
         purchaseHistoryService = new PurchaseHistoryService();
         alertService = new AlertService();
+        
+        initializeLogFile();
     }
 
     public static void main(String[] args) {
@@ -144,6 +178,8 @@ public class Main {
 
             currentUser = user;
             System.out.println("Login successful!");
+            
+            logAction("User Login: " + username);
 
             try {
                 socketClient = new com.quickmarket.utils.SocketClient(user.getUserId());
@@ -200,6 +236,7 @@ public class Main {
         User admin = adminService.login("admin", password);
         if (admin != null) {
             System.out.println("\nLogin successful!");
+            logAction("Admin Login");
             handleAdminMenu();
         } else {
             System.out.println("\nInvalid credentials!");
@@ -224,6 +261,7 @@ public class Main {
 
             currentUser = user;
             System.out.println("Customer registered successfully!");
+            logAction("Customer Registration: " + username);
             handleCustomerMenu();
         } catch (SQLException e) {
             System.out.println("Error during customer registration: " + e.getMessage());
@@ -247,6 +285,7 @@ public class Main {
             }
 
             System.out.println("Seller registered successfully!");
+            logAction("Seller Registration: " + username);
             currentUser = user;
             handleSellerMenu();
         } catch (SQLException e) {
@@ -266,6 +305,7 @@ public class Main {
                         if (socketClient != null) {
                             socketClient.disconnect();
                         }
+                        logAction("Admin Logout");
                         currentUser = null;
                         return;
                     case 1:
@@ -357,6 +397,7 @@ public class Main {
 
         marketService.createMarket(name, location);
         System.out.println("\nMarket added successfully!");
+        logAction("Market Created: " + name + " at " + location);
     }
 
     private static void handleUpdateMarket() throws SQLException {
@@ -393,6 +434,7 @@ public class Main {
 
         marketService.updateMarket(marketId, newName, newLocation);
         System.out.println("\nMarket updated successfully!");
+        logAction("Market Updated: " + newName + " at " + newLocation);
     }
 
     private static void handleCustomerMenu() throws SQLException {
@@ -407,6 +449,7 @@ public class Main {
                         if (socketClient != null) {
                             socketClient.disconnect();
                         }
+                        logAction("Customer Logout: " + currentUser.getUsername());
                         currentUser = null;
                         return;
                     case 1:
@@ -463,7 +506,7 @@ public class Main {
         
         if (input.equals("0")) return;
         if (input.equals("00")) {
-            handleRequestProduct();
+            handleRequestProduct(marketId);
             return;
         }
         
@@ -497,6 +540,7 @@ public class Main {
             if (currentQuantity > 0) {
                 shoppingListService.removeFromShoppingList(currentUser.getUserId(), productId);
                 System.out.println("\nProduct removed from shopping list.");
+                logAction("Product Removed from " + currentUser.getUsername() + "'s Shopping List:" + selectedProduct.getName());
             } else {
                 System.out.println("Quantity must be greater than 0.");
             }
@@ -506,9 +550,11 @@ public class Main {
             if (currentQuantity > 0) {
                 shoppingListService.updateQuantity(currentUser.getUserId(), productId, quantity);
                 System.out.println("\nShopping list updated successfully!");
+                logAction("Product Updated in : " + currentUser.getUsername() + "'s Shopping List:" + selectedProduct.getName() + ", quantity " + quantity);
             } else {
                 shoppingListService.addToShoppingList(currentUser.getUserId(), productId, quantity);
                 System.out.println("\nProduct added to shopping list successfully!");
+                logAction("Product Added to " + currentUser.getUsername() + "'s Shopping List: " + selectedProduct.getName() + ", quantity " + quantity);
             }
         }
     }
@@ -547,6 +593,8 @@ public class Main {
         if (choice == 1) {
             shoppingListService.moveToPurchaseHistory(currentUser.getUserId());
             System.out.println("\nShopping completed successfully. Items have been moved to purchase history.");
+            
+            logAction(currentUser.getUsername() + "'s Shopping List Completed");
         }
     }
 
@@ -577,6 +625,7 @@ public class Main {
                         if (socketClient != null) {
                             socketClient.disconnect();
                         }
+                        logAction("Seller Logout: " + currentUser.getUsername());
                         currentUser = null;
                         return;
                     case 1:
@@ -677,6 +726,8 @@ public class Main {
 
         productService.createProduct(name, price, quantity, stall.getStallId());
         System.out.println("\nProduct added successfully!");
+        
+        logAction(currentUser.getUsername() + "'s Product Created: " + name);
     }
 
     private static void handleUpdateProduct() throws SQLException {
@@ -697,13 +748,18 @@ public class Main {
 
         productService.updateProduct(productId, newName, newPrice, newQuantity);
         System.out.println("\nProduct updated successfully!");
+        logAction(currentUser.getUsername() + "'s Product Updated: " + newName);
     }
 
     private static void handleDeleteProduct() throws SQLException {
         int productId = handleSellerProducts();
 
+        Product product = productService.getProductById(productId);
+        String productName = product != null ? product.getName() : "Unknown Product";
+
         productService.deleteProduct(productId);
         System.out.println("\nProduct deleted successfully!");
+        logAction(currentUser.getUsername() + "'s Product Deleted: " + productName);
     }
 
     private static void handleCustomerAlerts() throws SQLException {
@@ -726,7 +782,7 @@ public class Main {
         boolean hasOwnRequests = false;
         for (Alert alert : alerts) {
             if (alert.getType().equals("customer_to_seller") && alert.getFromUserId() == currentUser.getUserId()) {
-                String status = alert.getStatusCustomer().equals("completed") ? "[COMPLETED]" : "[UNCOMPLETED]";
+                String status = alert.isCompleted() ? "[COMPLETED]" : "[UNCOMPLETED]";
                 System.out.println(alert.getId() + ". " + status + " Request for " + alert.getProductQuantity() + " kg of " + alert.getProductName());
                 hasOwnRequests = true;
             }
@@ -789,7 +845,7 @@ public class Main {
             }
         }
         
-        System.out.println("\n1. Mark a request as resolved");
+        System.out.println("\n1. Mark a request as responded");
         System.out.println("0. Go back");
         System.out.print("Choose an option: ");
         int choice = scanner.nextInt();
@@ -811,7 +867,7 @@ public class Main {
                 .stream()
                 .filter(alert -> alert.getType().equals("customer_to_seller") && 
                                alert.getFromUserId() == currentUser.getUserId() &&
-                               !alert.getStatusCustomer().equals("completed"))
+                               !alert.isCompleted())
                 .toList();
                 
             if (customerRequests.isEmpty()) {
@@ -840,9 +896,10 @@ public class Main {
             
             alertService.markCustomerRequestAsCompleted(currentUser.getUserId(), alert.getProductName(), alert.getProductQuantity());
             System.out.println("\nRequest marked as completed!");
+            logAction(currentUser.getUsername() + "'s Request Marked Completed: " + alert.getProductName());
             
         } else if (currentUser.getUserType().equals("SELLER")) {
-            System.out.print("Enter alert ID to mark as resolved: ");
+            System.out.print("Enter alert ID to mark as responded: ");
             int alertId = scanner.nextInt();
             scanner.nextLine();
             
@@ -853,7 +910,7 @@ public class Main {
             }
             
             try {
-                int responseAlertId = alertService.markRequestAsResolved(currentUser.getUserId(), alertId);
+                int responseAlertId = alertService.markRequestAsResponded(currentUser.getUserId(), alertId);
                 
                 Stall stall = stallService.getBySellerId(currentUser.getUserId());
                 String stallName = (stall != null) ? stall.getName() : "Stall";
@@ -864,7 +921,8 @@ public class Main {
                     alertService.markAlertAsRead(responseAlertId);
                 }
                 
-                System.out.println("\nRequest marked as resolved and customer notified!");
+                System.out.println("\nRequest marked as responded and customer notified!");
+                logAction("Request Responded: " + alert.getProductName() + " by " + currentUser.getUsername());
                 
             } catch (IllegalArgumentException e) {
                 System.out.println("Error: " + e.getMessage());
@@ -874,7 +932,7 @@ public class Main {
         }
     }
 
-    private static void handleRequestProduct() throws SQLException {
+    private static void handleRequestProduct(int marketId) throws SQLException {
         System.out.println("\nRequest a Product");
         System.out.print("Enter product name: ");
         String productName = scanner.nextLine();
@@ -891,9 +949,10 @@ public class Main {
         }
         
         String customerName = currentUser.getUsername();
-        List<Integer> alertIds = alertService.sendCustomerRequestWithNotification(
-            currentUser.getUserId(), customerName, productName, productQuantity);
+        List<Integer> alertIds = alertService.sendCustomerRequestWithNotificationInMarket(
+            currentUser.getUserId(), customerName, productName, productQuantity, marketId);
         
-        System.out.println("\nRequest sent to " + alertIds.size() + " relevant sellers!");
+        System.out.println("\nRequest sent to " + alertIds.size() + " relevant sellers in this market!");
+        logAction("Product Requested: " + productName + ", quantity: " + productQuantity + " by " + currentUser.getUsername() + " in market " + marketId);
     }
 }

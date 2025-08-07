@@ -15,15 +15,15 @@ public class AlertDAO {
     }
 
     public int create(Alert alert) throws SQLException {
-        String sql = "INSERT INTO alerts (from_user_id, to_user_id, product_name, product_quantity, type, status_customer, status_seller, is_read) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO alerts (from_user_id, to_user_id, product_name, product_quantity, type, is_completed, is_responded, is_read) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, alert.getFromUserId());
             stmt.setInt(2, alert.getToUserId());
             stmt.setString(3, alert.getProductName());
             stmt.setInt(4, alert.getProductQuantity());
             stmt.setString(5, alert.getType());
-            stmt.setString(6, alert.getStatusCustomer());
-            stmt.setString(7, alert.getStatusSeller());
+            stmt.setBoolean(6, alert.isCompleted());
+            stmt.setBoolean(7, alert.isResponded());
             stmt.setBoolean(8, alert.isRead());
             
             int affected = stmt.executeUpdate();
@@ -60,7 +60,7 @@ public class AlertDAO {
                     "(a1.to_user_id = ? AND a1.type = 'seller_to_customer' AND " +
                     "EXISTS (SELECT 1 FROM alerts orig WHERE orig.from_user_id = ? AND orig.type = 'customer_to_seller' " +
                     "AND orig.product_name = a1.product_name AND orig.product_quantity = a1.product_quantity " +
-                    "AND orig.status_customer = 'uncompleted')) " +
+                    "AND orig.is_completed = 0)) " +
                     "ORDER BY a1.created_at DESC";
         List<Alert> alerts = new ArrayList<>();
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -77,9 +77,8 @@ public class AlertDAO {
     }
 
     public List<Alert> getFilteredAlertsForSeller(int sellerId) throws SQLException {
-        // Get customer requests that are uncompleted AND unresolved by this seller
         String sql = "SELECT * FROM alerts WHERE to_user_id = ? AND type = 'customer_to_seller' " +
-                    "AND status_customer = 'uncompleted' AND status_seller = 'unresponded' " +
+                    "AND is_completed = 0 AND is_responded = 0 " +
                     "ORDER BY created_at DESC";
         List<Alert> alerts = new ArrayList<>();
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -129,7 +128,7 @@ public class AlertDAO {
     }
 
     public void markCustomerRequestAsCompleted(int customerId, String productName, int productQuantity) throws SQLException {
-        String sql = "UPDATE alerts SET status_customer = 'completed' WHERE from_user_id = ? AND product_name = ? AND product_quantity = ? AND type = 'customer_to_seller'";
+        String sql = "UPDATE alerts SET is_completed = 1 WHERE from_user_id = ? AND product_name = ? AND product_quantity = ? AND type = 'customer_to_seller'";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, customerId);
             stmt.setString(2, productName);
@@ -139,7 +138,7 @@ public class AlertDAO {
     }
 
     public void markSellerAsResponded(int sellerId, String productName, int productQuantity) throws SQLException {
-        String sql = "UPDATE alerts SET status_seller = 'responded' WHERE from_user_id = ? AND product_name = ? AND product_quantity = ? AND type = 'seller_to_customer'";
+        String sql = "UPDATE alerts SET is_responded = 1 WHERE from_user_id = ? AND product_name = ? AND product_quantity = ? AND type = 'seller_to_customer'";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, sellerId);
             stmt.setString(2, productName);
@@ -149,7 +148,7 @@ public class AlertDAO {
     }
 
     public List<Alert> getCustomerRequestsForSeller(int sellerId) throws SQLException {
-        String sql = "SELECT * FROM alerts WHERE to_user_id = ? AND type = 'customer_to_seller' AND status_customer = 'uncompleted' ORDER BY created_at DESC";
+        String sql = "SELECT * FROM alerts WHERE to_user_id = ? AND type = 'customer_to_seller' AND is_completed = 0 ORDER BY created_at DESC";
         List<Alert> alerts = new ArrayList<>();
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, sellerId);
@@ -189,8 +188,8 @@ public class AlertDAO {
         return null;
     }
 
-    public void markAsResolved(int alertId) throws SQLException {
-        String sql = "UPDATE alerts SET status_seller = 'resolved' WHERE id = ?";
+    public void markAsResponded(int alertId) throws SQLException {
+        String sql = "UPDATE alerts SET is_responded = 1 WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, alertId);
             stmt.executeUpdate();
@@ -205,8 +204,8 @@ public class AlertDAO {
             rs.getString("product_name"),
             rs.getInt("product_quantity"),
             rs.getString("type"),
-            rs.getString("status_customer"),
-            rs.getString("status_seller"),
+            rs.getBoolean("is_completed"),
+            rs.getBoolean("is_responded"),
             rs.getBoolean("is_read"),
             rs.getTimestamp("created_at")
         );

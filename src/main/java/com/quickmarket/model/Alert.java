@@ -9,21 +9,21 @@ public class Alert {
     private final String productName;
     private final int productQuantity;
     private final String type;
-    private String statusCustomer;
-    private String statusSeller;
+    private boolean isCompleted;
+    private boolean isResponded;
     private boolean isRead;
     private final Timestamp createdAt;
 
     public Alert(int id, int fromUserId, int toUserId, String productName, int productQuantity, 
-                 String type, String statusCustomer, String statusSeller, boolean isRead, Timestamp createdAt) {
+                 String type, boolean isCompleted, boolean isResponded, boolean isRead, Timestamp createdAt) {
         this.id = id;
         this.fromUserId = fromUserId;
         this.toUserId = toUserId;
         this.productName = productName;
         this.productQuantity = productQuantity;
         this.type = type;
-        this.statusCustomer = statusCustomer;
-        this.statusSeller = statusSeller;
+        this.isCompleted = isCompleted;
+        this.isResponded = isResponded;
         this.isRead = isRead;
         this.createdAt = createdAt;
     }
@@ -52,20 +52,20 @@ public class Alert {
         return type;
     }
 
-    public String getStatusCustomer() {
-        return statusCustomer;
+    public boolean isCompleted() {
+        return isCompleted;
     }
 
-    public void setStatusCustomer(String statusCustomer) {
-        this.statusCustomer = statusCustomer;
+    public void setCompleted(boolean completed) {
+        this.isCompleted = completed;
     }
 
-    public String getStatusSeller() {
-        return statusSeller;
+    public boolean isResponded() {
+        return isResponded;
     }
 
-    public void setStatusSeller(String statusSeller) {
-        this.statusSeller = statusSeller;
+    public void setResponded(boolean responded) {
+        this.isResponded = responded;
     }
 
     public boolean isRead() {

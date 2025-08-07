@@ -7,7 +7,6 @@ public class SocketServerMain {
         try {
             SocketServer.start();
 
-            // Keep the server running
             while (true) {
                 Thread.sleep(1000);
             }

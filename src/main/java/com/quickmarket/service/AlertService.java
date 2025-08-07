@@ -37,7 +37,7 @@ public class AlertService {
                     .anyMatch(p -> p.getName().equalsIgnoreCase(productName) && p.getQuantity() >= productQuantity);
                 if (!hasProduct) {
                     Alert alert = new Alert(0, customerId, seller.getUserId(), productName, productQuantity, 
-                                         "customer_to_seller", "uncompleted", "unresponded", false, null);
+                                         "customer_to_seller", false, false, false, null);
                     int alertId = alertDAO.create(alert);
                     alertIds.add(alertId);
                 }
@@ -59,17 +59,39 @@ public class AlertService {
                     .anyMatch(p -> p.getName().equalsIgnoreCase(productName) && p.getQuantity() >= productQuantity);
                 if (!hasProduct) {
                     Alert alert = new Alert(0, customerId, seller.getUserId(), productName, productQuantity, 
-                                         "customer_to_seller", "uncompleted", "unresponded", false, null);
+                                         "customer_to_seller", false, false, false, null);
                     int alertId = alertDAO.create(alert);
                     alertIds.add(alertId);
                     
-                    System.out.println("DEBUG: Attempting to send alert to seller " + seller.getUserId() + ": " + message);
                     boolean delivered = com.quickmarket.utils.AlertSender.sendAlert(seller.getUserId(), alertId, message);
-                    System.out.println("DEBUG: Alert delivery result: " + delivered);
                     if (delivered) {
                         alertDAO.markAsRead(alertId);
-                        System.out.println("DEBUG: Marked alert " + alertId + " as read");
                     }
+                }
+            }
+        }
+        return alertIds;
+    }
+
+    public List<Integer> sendCustomerRequestWithNotificationInMarket(int customerId, String customerName, String productName, int productQuantity, int marketId) throws SQLException {
+        List<Stall> stallsInMarket = stallDAO.getByMarketId(marketId);
+        List<Integer> alertIds = new java.util.ArrayList<>();
+        String message = formatCustomerRequestAlert(customerName, productName, productQuantity);
+        
+        for (Stall stall : stallsInMarket) {
+            int sellerId = stall.getSellerId();
+            List<Product> sellerProducts = productDAO.getByStall(stall.getStallId());
+            boolean hasProduct = sellerProducts.stream()
+                .anyMatch(p -> p.getName().equalsIgnoreCase(productName) && p.getQuantity() >= productQuantity);
+            if (!hasProduct) {
+                Alert alert = new Alert(0, customerId, sellerId, productName, productQuantity, 
+                                     "customer_to_seller", false, false, false, null);
+                int alertId = alertDAO.create(alert);
+                alertIds.add(alertId);
+                
+                boolean delivered = com.quickmarket.utils.AlertSender.sendAlert(sellerId, alertId, message);
+                if (delivered) {
+                    alertDAO.markAsRead(alertId);
                 }
             }
         }
@@ -78,18 +100,15 @@ public class AlertService {
 
     public int sendSellerResponse(int sellerId, int customerId, String productName, int productQuantity) throws SQLException {
         Alert alert = new Alert(0, sellerId, customerId, productName, productQuantity, 
-                              "seller_to_customer", "uncompleted", "responded", false, null);
+                              "seller_to_customer", false, true, false, null);
         int alertId = alertDAO.create(alert);
         
         try {
             Stall sellerStall = stallDAO.getBySellerId(sellerId);
             String message = formatSellerResponseAlert(sellerStall.getName(), productName, productQuantity);
-            System.out.println("DEBUG: Attempting to send response alert to customer " + customerId + ": " + message);
             boolean delivered = com.quickmarket.utils.AlertSender.sendAlert(customerId, alertId, message);
-            System.out.println("DEBUG: Response alert delivery result: " + delivered);
             if (delivered) {
                 alertDAO.markAsRead(alertId);
-                System.out.println("DEBUG: Marked response alert " + alertId + " as read");
             }
         } catch (Exception e) {
             System.err.println("Error sending real-time response alert: " + e.getMessage());
@@ -157,7 +176,7 @@ public class AlertService {
         return stallName + " has at least " + productQuantity + " kilos of " + productName + " in stock!";
     }
 
-    public int markRequestAsResolved(int sellerId, int alertId) throws SQLException {
+    public int markRequestAsResponded(int sellerId, int alertId) throws SQLException {
         Alert customerRequest = alertDAO.getAlertById(alertId);
         if (customerRequest == null || customerRequest.getToUserId() != sellerId) {
             throw new IllegalArgumentException("Alert not found or not for this seller");
@@ -167,7 +186,7 @@ public class AlertService {
             throw new IllegalStateException("Seller does not have enough " + customerRequest.getProductName() + " in stock");
         }
 
-        alertDAO.markAsResolved(alertId);
+        alertDAO.markAsResponded(alertId);
 
         return sendSellerResponse(sellerId, customerRequest.getFromUserId(), 
                                 customerRequest.getProductName(), customerRequest.getProductQuantity());

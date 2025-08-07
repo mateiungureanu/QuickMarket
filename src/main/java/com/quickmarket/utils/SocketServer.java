@@ -26,7 +26,6 @@ public class SocketServer {
                         new ClientHandler(clientSocket).start();
                     } catch (IOException e) {
                         if (running) {
-                            System.err.println("Error accepting client connection: " + e.getMessage());
                         }
                     }
                 }
@@ -53,7 +52,6 @@ public class SocketServer {
                 serverSocket.close();
             }
         } catch (IOException e) {
-            System.err.println("Error stopping socket server: " + e.getMessage());
         }
     }
 
@@ -66,38 +64,28 @@ public class SocketServer {
                 writer.println("ALERT:" + message);
                 writer.flush();
             } catch (Exception e) {
-                System.err.println("Error sending alert to user " + userId + ": " + e.getMessage());
             }
         }
     }
 
     public static boolean sendAlertToUser(int userId, int alertId, String message) {
-        System.out.println("DEBUG: Server running status: " + running);
-        System.out.println("DEBUG: Connected users count: " + connectedUsers.size());
-        System.out.println("DEBUG: Connected user IDs: " + connectedUsers.keySet());
         
         if (!running) {
-            System.out.println("DEBUG: Socket server not running - alert will be stored in database only");
             return false;
         }
         
-        System.out.println("DEBUG: Looking for connected user " + userId + " among " + connectedUsers.size() + " connected users");
         PrintWriter writer = connectedUsers.get(userId);
         if (writer != null) {
             try {
                 String fullMessage = "ALERT:" + alertId + ":" + message;
-                System.out.println("DEBUG: Sending message: " + fullMessage);
                 writer.println(fullMessage);
                 writer.flush();
-                System.out.println("DEBUG: Message sent successfully");
-                return true; // Successfully delivered
+                return true;
             } catch (Exception e) {
-                System.err.println("Error sending alert to user " + userId + ": " + e.getMessage());
                 return false;
             }
         } else {
-            System.out.println("DEBUG: User " + userId + " not found in connected users map");
-            return false; // User not connected
+            return false;
         }
     }
 
@@ -107,7 +95,6 @@ public class SocketServer {
 
     public static boolean tryConnect() {
         try {
-            // Try to connect to see if server is running
             Socket testSocket = new Socket("localhost", PORT);
             testSocket.close();
             return true;
@@ -144,7 +131,6 @@ public class SocketServer {
                 if (firstMessage != null && firstMessage.startsWith("USER:")) {
                     userId = Integer.parseInt(firstMessage.substring(5));
                     userConnected(userId, writer);
-                    System.out.println("User " + userId + " connected");
                     
                     String message;
                     while ((message = reader.readLine()) != null) {
@@ -155,18 +141,15 @@ public class SocketServer {
                     return;
                 }
             } catch (IOException e) {
-                System.err.println("Error handling client: " + e.getMessage());
             } finally {
                 if (userId != -1) {
                     userDisconnected(userId);
-                    System.out.println("User " + userId + " disconnected");
                 }
                 try {
                     if (reader != null) reader.close();
                     if (writer != null) writer.close();
                     if (clientSocket != null) clientSocket.close();
                 } catch (IOException e) {
-                    System.err.println("Error closing client connection: " + e.getMessage());
                 }
             }
         }
@@ -174,8 +157,6 @@ public class SocketServer {
         private void handleMessage(String message) {
             if (message.startsWith("SEND_ALERT:")) {
                 handleAlertCommand(message);
-            } else {
-                System.out.println("Received from user " + userId + ": " + message);
             }
         }
         
@@ -187,12 +168,20 @@ public class SocketServer {
                     int alertId = Integer.parseInt(parts[2]);
                     String alertMessage = parts[3];
                     
-                    System.out.println("DEBUG: Received alert command for user " + targetUserId + ": " + alertMessage);
                     boolean delivered = sendAlertDirectly(targetUserId, alertId, alertMessage);
-                    System.out.println("DEBUG: Alert delivery result: " + delivered);
+                    
+                    if (delivered) {
+                        writer.println("DELIVERED");
+                    } else {
+                        writer.println("NOT_DELIVERED");
+                    }
+                    writer.flush();
                 }
             } catch (Exception e) {
-                System.err.println("Error handling alert command: " + e.getMessage());
+                if (writer != null) {
+                    writer.println("ERROR");
+                    writer.flush();
+                }
             }
         }
         
@@ -201,16 +190,13 @@ public class SocketServer {
             if (targetWriter != null) {
                 try {
                     String fullMessage = "ALERT:" + alertId + ":" + message;
-                    System.out.println("DEBUG: Sending message to user " + userId + ": " + fullMessage);
                     targetWriter.println(fullMessage);
                     targetWriter.flush();
                     return true;
                 } catch (Exception e) {
-                    System.err.println("Error sending alert to user " + userId + ": " + e.getMessage());
                     return false;
                 }
             } else {
-                System.out.println("DEBUG: User " + userId + " not connected");
                 return false;
             }
         }

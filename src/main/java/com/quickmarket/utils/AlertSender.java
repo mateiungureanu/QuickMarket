@@ -1,6 +1,8 @@
 package com.quickmarket.utils;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
@@ -10,23 +12,25 @@ public class AlertSender {
     
     public static boolean sendAlert(int userId, int alertId, String message) {
         try (Socket socket = new Socket(SERVER_HOST, SERVER_PORT);
-             PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)) {
+             PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             
             String command = "SEND_ALERT:" + userId + ":" + alertId + ":" + message;
             writer.println(command);
             writer.flush();
             
             try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                String response = reader.readLine();
+                if ("DELIVERED".equals(response)) {
+                    return true;
+                } else {
+                    return false;
+                }
+            } catch (Exception e) {
+                return false;
             }
             
-            System.out.println("DEBUG: Alert sent to server for user " + userId);
-            return true;
-            
         } catch (IOException e) {
-            System.out.println("DEBUG: Could not connect to socket server: " + e.getMessage());
             return false;
         }
     }
